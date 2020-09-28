@@ -27,14 +27,11 @@ __BEGIN_DECLS
  * Supported LMKD commands
  */
 enum lmk_cmd {
-    LMK_TARGET = 0, /* Associate minfree with oom_adj_score */
-    LMK_PROCPRIO,   /* Register a process and set its oom_adj_score */
-    LMK_PROCREMOVE, /* Unregister a process */
-    LMK_PROCPURGE,  /* Purge all registered processes */
-    LMK_GETKILLCNT, /* Get number of kills */
-    LMK_SUBSCRIBE,  /* Subscribe for asynchronous events */
-    LMK_PROCKILL,   /* Unsolicited msg to subscribed clients on proc kills */
-    LMK_UPDATE_PROPS, /* Reinit properties */
+    LMK_TARGET = 0,  /* Associate minfree with oom_adj_score */
+    LMK_PROCPRIO,    /* Register a process and set its oom_adj_score */
+    LMK_PROCREMOVE,  /* Unregister a process */
+    LMK_PROCPURGE,   /* Purge all registered processes */
+    LMK_GETKILLCNT,  /* Get number of kills */
 };
 
 /*
@@ -90,33 +87,21 @@ static inline size_t lmkd_pack_set_target(LMKD_CTRL_PACKET packet, struct lmk_ta
     return idx * sizeof(int);
 }
 
-/* Process types for lmk_procprio.ptype */
-enum proc_type {
-    PROC_TYPE_FIRST,
-    PROC_TYPE_APP = PROC_TYPE_FIRST,
-    PROC_TYPE_SERVICE,
-    PROC_TYPE_COUNT,
-};
-
 /* LMK_PROCPRIO packet payload */
 struct lmk_procprio {
     pid_t pid;
     uid_t uid;
     int oomadj;
-    enum proc_type ptype;
 };
 
 /*
  * For LMK_PROCPRIO packet get its payload.
  * Warning: no checks performed, caller should ensure valid parameters.
  */
-static inline void lmkd_pack_get_procprio(LMKD_CTRL_PACKET packet, int field_count,
-                                          struct lmk_procprio* params) {
+static inline void lmkd_pack_get_procprio(LMKD_CTRL_PACKET packet, struct lmk_procprio* params) {
     params->pid = (pid_t)ntohl(packet[1]);
     params->uid = (uid_t)ntohl(packet[2]);
     params->oomadj = ntohl(packet[3]);
-    /* if field is missing assume PROC_TYPE_APP for backward compatibility */
-    params->ptype = field_count > 3 ? (enum proc_type)ntohl(packet[4]) : PROC_TYPE_APP;
 }
 
 /*
@@ -128,8 +113,7 @@ static inline size_t lmkd_pack_set_procprio(LMKD_CTRL_PACKET packet, struct lmk_
     packet[1] = htonl(params->pid);
     packet[2] = htonl(params->uid);
     packet[3] = htonl(params->oomadj);
-    packet[4] = htonl((int)params->ptype);
-    return 5 * sizeof(int);
+    return 4 * sizeof(int);
 }
 
 /* LMK_PROCREMOVE packet payload */
@@ -151,7 +135,7 @@ static inline void lmkd_pack_get_procremove(LMKD_CTRL_PACKET packet,
  * Warning: no checks performed, caller should ensure valid parameters.
  */
 static inline size_t lmkd_pack_set_procremove(LMKD_CTRL_PACKET packet,
-                                              struct lmk_procremove* params) {
+                                              struct lmk_procprio* params) {
     packet[0] = htonl(LMK_PROCREMOVE);
     packet[1] = htonl(params->pid);
     return 2 * sizeof(int);
@@ -202,80 +186,6 @@ static inline size_t lmkd_pack_set_getkillcnt_repl(LMKD_CTRL_PACKET packet, int 
     packet[0] = htonl(LMK_GETKILLCNT);
     packet[1] = htonl(kill_cnt);
     return 2 * sizeof(int);
-}
-
-/* Types of asyncronous events sent from lmkd to its clients */
-enum async_event_type {
-    LMK_ASYNC_EVENT_FIRST,
-    LMK_ASYNC_EVENT_KILL = LMK_ASYNC_EVENT_FIRST,
-    LMK_ASYNC_EVENT_COUNT,
-};
-
-/* LMK_SUBSCRIBE packet payload */
-struct lmk_subscribe {
-    enum async_event_type evt_type;
-};
-
-/*
- * For LMK_SUBSCRIBE packet get its payload.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline void lmkd_pack_get_subscribe(LMKD_CTRL_PACKET packet, struct lmk_subscribe* params) {
-    params->evt_type = (enum async_event_type)ntohl(packet[1]);
-}
-
-/**
- * Prepare LMK_SUBSCRIBE packet and return packet size in bytes.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline size_t lmkd_pack_set_subscribe(LMKD_CTRL_PACKET packet, enum async_event_type evt_type) {
-    packet[0] = htonl(LMK_SUBSCRIBE);
-    packet[1] = htonl((int)evt_type);
-    return 2 * sizeof(int);
-}
-
-/**
- * Prepare LMK_PROCKILL unsolicited packet and return packet size in bytes.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline size_t lmkd_pack_set_prockills(LMKD_CTRL_PACKET packet, pid_t pid, uid_t uid) {
-    packet[0] = htonl(LMK_PROCKILL);
-    packet[1] = htonl(pid);
-    packet[2] = htonl(uid);
-    return 3 * sizeof(int);
-}
-
-/*
- * Prepare LMK_UPDATE_PROPS packet and return packet size in bytes.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline size_t lmkd_pack_set_update_props(LMKD_CTRL_PACKET packet) {
-    packet[0] = htonl(LMK_UPDATE_PROPS);
-    return sizeof(int);
-}
-
-/*
- * Prepare LMK_UPDATE_PROPS reply packet and return packet size in bytes.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline size_t lmkd_pack_set_update_props_repl(LMKD_CTRL_PACKET packet, int result) {
-    packet[0] = htonl(LMK_UPDATE_PROPS);
-    packet[1] = htonl(result);
-    return 2 * sizeof(int);
-}
-
-/* LMK_PROCPRIO reply payload */
-struct lmk_update_props_reply {
-    int result;
-};
-
-/*
- * For LMK_UPDATE_PROPS reply payload.
- * Warning: no checks performed, caller should ensure valid parameters.
- */
-static inline void lmkd_pack_get_update_props_repl(LMKD_CTRL_PACKET packet,
-                                          struct lmk_update_props_reply* params) {
-    params->result = ntohl(packet[1]);
 }
 
 __END_DECLS

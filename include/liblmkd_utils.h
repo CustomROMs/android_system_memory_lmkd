@@ -40,28 +40,6 @@ int lmkd_connect();
 int lmkd_register_proc(int sock, struct lmk_procprio *params);
 
 /*
- * Unregisters a process previously registered with lmkd.
- * On success returns 0.
- * On error, -1 is returned.
- * In the case of error errno is set appropriately.
- */
-int lmkd_unregister_proc(int sock, struct lmk_procremove *params);
-
-enum update_props_result {
-    UPDATE_PROPS_SUCCESS,
-    UPDATE_PROPS_FAIL,
-    UPDATE_PROPS_SEND_ERR,
-    UPDATE_PROPS_RECV_ERR,
-    UPDATE_PROPS_FORMAT_ERR,
-};
-
-/*
- * Updates lmkd properties.
- * In the case of ERR_SEND or ERR_RECV errno is set appropriately.
- */
-enum update_props_result lmkd_update_props(int sock);
-
-/*
  * Creates memcg directory for given process.
  * On success returns 0.
  * -1 is returned if path creation failed.
